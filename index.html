@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+  <head>
+    <title>WebGL Demo</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <script src="./glUtils.js" type="text/javascript"></script>
+    <script src="./index.js" type="text/javascript"></script>
+
+    <!-- Fragment shader program -->
+
+    <script id="shader-fs" type="x-shader/x-fragment">
+      varying lowp vec4 vColor;
+      void main(void) {
+        gl_FragColor = vColor;
+      }
+    </script>
+
+    <!-- Vertex shader program -->
+
+    <script id="shader-vs" type="x-shader/x-vertex">
+      attribute vec4 aVertexPosition;
+      uniform mat4 uMVMatrix;
+      uniform mat4 uPMatrix;
+      uniform float magnitudes[200];
+      uniform int tubePosition;
+      varying lowp vec4 vColor;
+
+      // vColor = vec4(242.0 / 255.0, 0.0, 255.0 / 255.0, 1.0); 3
+
+      void main(void) {
+        int position = 0;
+        vColor = vec4(1.0, 1.0, 1.0, 1.0);
+        if (abs(aVertexPosition.a - (3.0 / 8.0)) < 0.01) {
+          vColor = vec4(255.0 / 255.0, 255.0 / 255.0, 0.0, 1.0);
+          position = 0;
+        }
+        if (abs(aVertexPosition.a - 0.0) < 0.01) {
+          vColor = vec4(255.0 / 255.0, 114.0 / 255.0, 0.0, 1.0);
+          position = 1;
+        }
+        if (abs(aVertexPosition.a - (1.0 / 8.0)) < 0.01) {
+          vColor = vec4(255.0 / 255.0, 0.0, 0.0, 1.0);
+          position = 2;
+        }
+        if (abs(aVertexPosition.a - (2.0 / 8.0)) < 0.01) {
+          vColor = vec4(255.0 / 255.0, 0.0, 148.0 / 255.0, 1.0);
+          position = 3;
+        }
+        if (abs(aVertexPosition.a - (4.0 / 8.0)) < 0.01) {
+          vColor = vec4(131.0 / 255.0, 0.0, 255.0 / 255.0, 1.0);
+          position = 4;
+        }
+        if (abs(aVertexPosition.a - (5.0 / 8.0)) < 0.01) {
+          vColor = vec4(0.0, 169.0 / 255.0, 255.0 / 255.0, 1.0);
+          position = 5;
+        }
+        if (abs(aVertexPosition.a - (6.0 / 8.0)) < 0.01) {
+          vColor = vec4(0.0, 255.0 / 255.0, 46.0 / 255.0, 1.0);
+          position = 6;
+        }
+        if (abs(aVertexPosition.a - (7.0 / 8.0)) < 0.01) {
+          vColor = vec4(0.0, 255.0 / 255.0, 187.0 / 255.0, 1.0);
+          position = 7;
+        }
+        vColor = vec4(vColor.rgb * magnitudes[(tubePosition * 8) + position], 1.0);
+        vec4 outPosition = vec4(aVertexPosition.xyz, 1.0);
+        outPosition.y = outPosition.y + (magnitudes[(tubePosition * 8) + position] * 0.5);
+        outPosition.z = outPosition.z + (magnitudes[(tubePosition * 8) + position] * 7.5);
+        gl_Position = uPMatrix * uMVMatrix * outPosition;
+        // vColor = vec4(1.0, 1.0, 0.0, 0.0);
+      }
+    </script>
+
+    <style>
+      body {
+        margin: 0px;
+        padding: 0px;
+        overflow: hidden;
+      }
+    </style>
+    
+  </head>
+
+  <body onload="start()">
+    <canvas id="glcanvas" width="1920" height="1080">
+      Your browser doesn't appear to support the <code>&lt;canvas&gt;</code> element.
+    </canvas>
+  </body>
+</html>
