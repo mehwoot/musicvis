@@ -24,6 +24,7 @@
       uniform mat4 uPMatrix;
       uniform float magnitudes[200];
       uniform int tubePosition;
+      uniform float displacementMultipler;
       varying lowp vec4 vColor;
 
       void main(void) {
@@ -63,8 +64,8 @@
         }
         vColor = vec4(vColor.rgb * magnitudes[(tubePosition * 8) + position], 1.0);
         vec4 outPosition = vec4(aVertexPosition.xyz, 1.0);
-        outPosition.y = outPosition.y + (magnitudes[(tubePosition * 8) + position] * 0.5);
-        outPosition.z = outPosition.z + (magnitudes[(tubePosition * 8) + position] * 7.5);
+        outPosition.y = outPosition.y + (magnitudes[(tubePosition * 8) + position] * (displacementMultipler / 2.0));
+        outPosition.z = outPosition.z + (magnitudes[(tubePosition * 8) + position] * (displacementMultipler));
         gl_Position = uPMatrix * uMVMatrix * outPosition;
         // vColor = vec4(1.0, 1.0, 0.0, 0.0);
       }

@@ -1,3 +1,17 @@
+
+var fftSize = 2048; // cannot be smaller than 512
+var numTubes = 25;
+var segments = 128;
+var fps = 30;
+var cameraPosition = 65;
+var tubeExponent = 1.05;
+var sliceGrouping = 1;
+
+var magnitudes = [];
+for (var i=0; i<numTubes * 8; i++) {
+  magnitudes.push(0);
+}
+
 var canvas;
 var gl;
 var tubeBuffers = [];
@@ -7,14 +21,10 @@ var shaderProgram;
 var vertexPositionAttribute;
 var vertexColorAttribute;
 var perspectiveMatrix;
-var segments = 128;
 var audioContext;
 var song;
 var analyserNode = null;
-var magnitudes = [];
-for (var i=0; i<200; i++) {
-  magnitudes.push(0);
-}
+
 
 function start() {
   canvas = document.getElementById("glcanvas");
@@ -31,7 +41,7 @@ function start() {
 
     initShaders();
     initBuffers();
-    setInterval(update, 35);
+    setInterval(update, 1000 / fps);
   }
 }
 
@@ -41,12 +51,16 @@ function update() {
 }
 
 function startMicrophone () {
-  if (!navigator.getUserMedia)
-      navigator.getUserMedia = navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
-  if (!navigator.cancelAnimationFrame)
-      navigator.cancelAnimationFrame = navigator.webkitCancelAnimationFrame || navigator.mozCancelAnimationFrame;
-  if (!navigator.requestAnimationFrame)
-      navigator.requestAnimationFrame = navigator.webkitRequestAnimationFrame || navigator.mozRequestAnimationFrame;
+  if (!navigator.getUserMedia) {
+    navigator.getUserMedia = navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+  }
+  if (!navigator.cancelAnimationFrame) {
+    navigator.cancelAnimationFrame = navigator.webkitCancelAnimationFrame || navigator.mozCancelAnimationFrame;
+  }
+  if (!navigator.requestAnimationFrame) {
+    navigator.requestAnimationFrame = navigator.webkitRequestAnimationFrame || navigator.mozRequestAnimationFrame;
+  } 
+
   navigator.getUserMedia(
     {
         "audio": {
@@ -68,7 +82,7 @@ function gotStream(stream) {
 
   song = audioContext.createMediaStreamSource(stream);
   analyserNode = audioContext.createAnalyser();
-  analyserNode.fftSize = 2048;
+  analyserNode.fftSize = fftSize;
   song.connect(analyserNode);
 }
 
@@ -120,6 +134,7 @@ function initWebGL() {
   if (!gl) {
     alert("Unable to initialize WebGL. Your browser may not support it.");
   }
+  //console.log(gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS));
 }
 
 function initAudio() {
@@ -154,33 +169,31 @@ function playSound(buffer) {
   source.connect(audioContext.destination);
 
   analyserNode = audioContext.createAnalyser();
-  analyserNode.fftSize = 512;
+  analyserNode.fftSize = fftSize;
   source.connect(analyserNode);
 
   source.start(0);
 }
 
-function generateTubularBuffer(innerRadius, outerRadius, segments) {
+function generateTubularBuffer(innerRadius, outerRadius, segments, startAngle) {
   var buffer = gl.createBuffer();
   var angleDelta = (2 * 3.14159265) / (segments * 2);
   var vertices = [];
-  var angleAt = (2 * 3.14159265) * Math.random();
-
 
   for (var i=0; i<segments; i++) {
     var segmentCount = (i % 8) / (8.0);
     vertices = vertices.concat([
-      outerRadius * Math.cos(angleAt), outerRadius * Math.sin(angleAt), 0, segmentCount,
-      innerRadius * Math.cos(angleAt), innerRadius * Math.sin(angleAt), 0, segmentCount
+      outerRadius * Math.cos(startAngle), outerRadius * Math.sin(startAngle), 0, segmentCount,
+      innerRadius * Math.cos(startAngle), innerRadius * Math.sin(startAngle), 0, segmentCount
     ])
-    angleAt += angleDelta;
+    startAngle += angleDelta;
     vertices = vertices.concat([
-      outerRadius * Math.cos(angleAt), outerRadius * Math.sin(angleAt), 0, segmentCount
+      outerRadius * Math.cos(startAngle), outerRadius * Math.sin(startAngle), 0, segmentCount
     ])
-    angleAt += angleDelta;
+    startAngle += angleDelta;
     vertices = vertices.concat([
-      innerRadius * Math.cos(angleAt), innerRadius * Math.sin(angleAt), 0, segmentCount,
-      outerRadius * Math.cos(angleAt), outerRadius * Math.sin(angleAt), 0, segmentCount
+      innerRadius * Math.cos(startAngle), innerRadius * Math.sin(startAngle), 0, segmentCount,
+      outerRadius * Math.cos(startAngle), outerRadius * Math.sin(startAngle), 0, segmentCount
     ])
   }
   gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
@@ -191,24 +204,31 @@ function generateTubularBuffer(innerRadius, outerRadius, segments) {
 function initBuffers() {
   var base = 0.0;
   var increment = 1.0;
-  for (var i=0; i<25; i++) {
-    tubeBuffers.push(generateTubularBuffer(base,base + increment,segments));
+  var startAngle = (2 * 3.14159265) * Math.random();
+  for (var i=0; i<numTubes; i++) {
+    if (i % sliceGrouping == 0) {
+      startAngle = (2 * 3.14159265) * Math.random();
+    }
+    tubeBuffers.push(generateTubularBuffer(base,base + increment,segments, startAngle));
     base += increment;
-    increment *= 1.05;
+    increment *= tubeExponent;
   }
 }
 
 function drawScene() {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  perspectiveMatrix = makePerspective(45, 1920.0/1080.0, 0.1, 200.0);
+  perspectiveMatrix = makePerspective(45, 1920.0/1080.0, 0.1, cameraPosition + 25);
 
   loadIdentity();
-  mvTranslate([-0.0, 0.0, -65.0]);
+  mvTranslate([-0.0, 0.0, -cameraPosition]);
 
   setMatrixUniforms();
   var magnitudesUniform = gl.getUniformLocation(shaderProgram, "magnitudes");
   gl.uniform1fv(magnitudesUniform, new Float32Array(magnitudes));
+  var displacementMultiplerUniform = gl.getUniformLocation(shaderProgram, "displacementMultipler");
+  gl.uniform1f(displacementMultiplerUniform, (cameraPosition / 65.0));
   var tubePositionUniform = gl.getUniformLocation(shaderProgram, "tubePosition");
+
 
   for (var i=0; i<tubeBuffers.length; i++) {
     var tubePosition = tubeBuffers.length - (i + 1)
@@ -232,8 +252,8 @@ function initShaders() {
   gl.useProgram(shaderProgram);
   vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
   gl.enableVertexAttribArray(vertexPositionAttribute);
-  vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
-  gl.enableVertexAttribArray(vertexColorAttribute);
+  // vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
+  // gl.enableVertexAttribArray(vertexColorAttribute);
 }
 
 function getShader(gl, id) {
